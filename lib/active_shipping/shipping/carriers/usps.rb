@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 require 'cgi'
+require 'socket'
 
 module ActiveMerchant
   module Shipping
@@ -22,6 +23,7 @@ module ActiveMerchant
 
       cattr_reader :name
       @@name = "USPS"
+      @@ip_addr = IPSocket.getaddress(Socket.gethostname)
 
       LIVE_DOMAIN = 'production.shippingapis.com'
       LIVE_RESOURCE = 'ShippingAPI.dll'
@@ -148,6 +150,13 @@ module ActiveMerchant
         parse_tracking_response(response, options)
       end
 
+      def find_tracking_info_with_fields(tracking_numbers, options={})
+        options = @options.update(options)
+        tracking_request = build_tracking_with_fields_request(tracking_numbers)
+        response = commit(:track, tracking_request, (options[:test] || false))
+        parse_tracking_with_fields_response(response)
+      end
+
       def self.size_code_for(package)
         if package.inches(:max) <= 12
           'REGULAR'
@@ -223,6 +232,18 @@ module ActiveMerchant
       def build_tracking_request(tracking_number, options={})
         xml_request = XmlNode.new('TrackRequest', 'USERID' => @options[:login]) do |root_node|
           root_node << XmlNode.new('TrackID', :ID => tracking_number)
+        end
+        URI.encode(xml_request.to_s)
+      end
+
+      def build_tracking_with_fields_request(tracking_numbers)
+        # Using revision 1 api for new functionality
+        xml_request = XmlNode.new('TrackFieldRequest', 'USERID' => @options[:login]) do |root_node|
+          root_node << XmlNode.new('Revision', 1)
+          # NOTE not sure of purpose and use of the client ip address
+          root_node << XmlNode.new('ClientIp', @@ip_addr)
+          root_node << XmlNode.new('SourceId', @options[:login]) # usps login as internal user
+          tracking_numbers.each { |track_num| root_node << XmlNode.new('TrackID', :ID => track_num) }
         end
         URI.encode(xml_request.to_s)
       end
@@ -535,6 +556,69 @@ module ActiveMerchant
           :actual_delivery_date => actual_delivery_date
         )
       end
+      
+      def parse_tracking_with_fields_response(response)
+        xml = REXML::Document.new(response)
+        tracking_responses = []
+        tracking_nodes = xml.elements.collect('TrackResponse/TrackInfo') { |e| e }
+
+        tracking_nodes.each do |tracking_info|
+          tracking_number = tracking_info.attributes['ID'].to_s
+          tracking_details = tracking_info.elements.collect('TrackDetail'){ |e| e }
+          tracking_summary = tracking_info.elements['TrackSummary']
+
+          success = !(tracking_info.elements['Error'] || summary_no_record?(tracking_summary))
+          message = "" #response_message(tracking_info)
+          shipment_events = []
+          status, expected_delivery_date, actual_delivery_date = nil
+
+          if success 
+            tracking_details.each do |event|
+              shipment_events << extract_track_with_fields_event(event)
+            end
+            summary_ship_event = extract_track_with_fields_event(tracking_summary)
+            shipment_events << summary_ship_event
+            shipment_events = shipment_events.sort_by(&:time)
+
+            actual_delivery_date = summary_ship_event.time if summary_ship_event.delivered?
+            status = tracking_info.elements['StatusCategory'].get_text.to_s
+            status = status.downcase.gsub("\s", "_").to_sym
+            
+            if tracking_info.elements['ExpectedDeliveryDate']
+              puts "#{tracking_info.elements['ExpectedDeliveryDate'].to_s} #{tracking_info.elements['ExpectedDeliveryTime'].to_s}"
+
+              time = Time.parse("#{tracking_info.elements['ExpectedDeliveryDate'].to_s} #{tracking_info.elements['ExpectedDeliveryTime'].to_s}")
+
+              expected_delivery_date = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
+            end
+          end
+
+          tracking_responses << TrackingResponse.new(success, message,  Hash.from_xml(tracking_info.to_s),
+                               :carrier => @@name,
+                               :xml => response,
+                               :request => last_request,
+                               :shipment_events => shipment_events,
+                               :tracking_number => tracking_number,
+                               :status => status,
+                               :actual_delivery_date => actual_delivery_date,
+                               :scheduled_delivery_date => expected_delivery_date
+                              )
+        end
+
+        tracking_responses
+      end
+
+      def extract_track_with_fields_event(track_event_node)
+        status_name = track_event_node.elements['Event'].get_text.to_s
+        time = Time.parse("#{track_event_node.elements['EventDate'].get_text.to_s} #{track_event_node.elements['EventTime'].get_text.to_s}")
+        zoneless_datetime = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
+        country = !!track_event_node.elements['EventCountry'] || track_event_node.elements['EventCountry'].blank? ? 'USA' : track_event_node.elements['EventCountry'].get_text.to_s
+        location = Location.new(city: track_event_node.elements['EventCity'].get_text.to_s,
+                                state: track_event_node.elements['EventState'].get_text.to_s,
+                                postal_code: track_event_node.elements['EventZIPCode'].get_text.to_s,
+                                country: country)
+        ShipmentEvent.new(status_name, zoneless_datetime, location)
+      end
 
       def track_summary_node(document)
         document.elements['*/*/TrackSummary']
@@ -559,12 +643,16 @@ module ActiveMerchant
       def no_record?(document)
         summary_node = track_summary_node(document)
         if summary_node
-          summary = summary_node.get_text.to_s
-          RESPONSE_ERROR_MESSAGES.detect { |re| summary =~ re }
-          summary =~ /There is no record of that mail item/ || summary =~ /This Information has not been included in this Test Server\./
+          summary_no_record?(summary_node)
         else
           false
         end
+      end
+
+      def summary_no_record?(summary_node)
+        summary = summary_node.get_text.to_s
+        RESPONSE_ERROR_MESSAGES.detect { |re| summary =~ re }
+        summary =~ /There is no record of that mail item/ || summary =~ /This Information has not been included in this Test Server\./
       end
 
       def tracking_info_error?(document)
