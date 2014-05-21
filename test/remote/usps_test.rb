@@ -10,13 +10,26 @@ class USPSTest < Test::Unit::TestCase
 
   def test_tracking
     assert_nothing_raised do
-      @carrier.find_tracking_info('EJ958083578US', :test => true)
+      @carrier.find_tracking_info('9400110200882182234434', :test => true)
+    end
+  end
+
+  def test_tracking_w_fields
+    assert_nothing_raised do
+      response = @carrier.find_tracking_info_with_fields(['9400110200882182234434'], :test => true).first
+      puts response.xml
     end
   end
 
   def test_tracking_with_bad_number
-    assert_raises ResponseError do
+    assert_raises ActiveMerchant::Shipping::ResponseError do
       response = @carrier.find_tracking_info('abc123xyz')
+    end
+  end
+
+  def test_tracking_w_field_with_bad_number
+    assert_raises ActiveMerchant::Shipping::ResponseError do
+      response = @carrier.find_tracking_info_with_fields(['abc123xyz'])
     end
   end
 
@@ -226,12 +239,13 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_valid_credentials
-    assert USPS.new(fixtures(:usps).merge(:test => true)).valid_credentials?
+    assert USPS.new(fixtures(:usps)).valid_credentials?
   end
 
   def test_valid_credentials_empty_login
-    usps = USPS.new(:test => true)
-    assertEqual false, usps.valid_credentials?
+    assert_raises ArgumentError do
+      USPS.new(:test => true).should
+    end
   end
 
   # Uncomment and switch out SPECIAL_COUNTRIES with some other batch to see which

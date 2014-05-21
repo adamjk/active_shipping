@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrackResponse>
+  <TrackInfo ID="9400110200882182234434">
+    <Class>First-Class Package Service</Class>
+    <ClassOfMailCode>FC</ClassOfMailCode>
+    <DestinationCity>SAINT ALBANS</DestinationCity>
+    <DestinationState>WV</DestinationState>
+    <DestinationZip>25177</DestinationZip>
+    <EmailEnabled>true</EmailEnabled>
+    <ExpectedDeliveryDate>May 15, 2014</ExpectedDeliveryDate>
+    <KahalaIndicator>false</KahalaIndicator>
+    <MailTypeCode>DM</MailTypeCode>
+    <MPDATE>2014-05-12 21:42:26.000000</MPDATE>
+    <MPSUFFIX>675849201</MPSUFFIX>
+    <OriginCity>INDIANAPOLIS</OriginCity>
+    <OriginState>IN</OriginState>
+    <OriginZip>46222</OriginZip>
+    <PodEnabled>false</PodEnabled>
+    <RestoreEnabled>false</RestoreEnabled>
+    <RreEnabled>false</RreEnabled>
+    <Service>USPS Tracking&lt;SUP>&amp;#153;&lt;/SUP></Service>
+    <ServiceTypeCode>001</ServiceTypeCode>
+    <Status>Delivered</Status>
+    <StatusCategory>Delivered</StatusCategory>
+    <StatusSummary>Your item was delivered at 4:42 pm on May 14, 2014 in SAINT ALBANS, WV 25177.</StatusSummary>
+    <TABLECODE>T</TABLECODE>
+    <TrackSummary>
+      <EventTime>4:42 pm</EventTime>
+      <EventDate>May 14, 2014</EventDate>
+      <Event>Delivered</Event>
+      <EventCity>SAINT ALBANS</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25177</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>01</EventCode>
+    </TrackSummary>
+    <TrackDetail>
+      <EventTime>7:37 am</EventTime>
+      <EventDate>May 14, 2014</EventDate>
+      <Event>Out for Delivery</Event>
+      <EventCity>SAINT ALBANS</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25177</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>OF</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>7:27 am</EventTime>
+      <EventDate>May 14, 2014</EventDate>
+      <Event>Sorting Complete</Event>
+      <EventCity>SAINT ALBANS</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25177</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>PC</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>5:33 am</EventTime>
+      <EventDate>May 14, 2014</EventDate>
+      <Event>Arrival at Post Office</Event>
+      <EventCity>SAINT ALBANS</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25177</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>07</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>7:59 pm</EventTime>
+      <EventDate>May 13, 2014</EventDate>
+      <Event>Depart USPS Sort Facility</Event>
+      <EventCity>CHARLESTON</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25350</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>EF</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>5:38 pm</EventTime>
+      <EventDate>May 13, 2014</EventDate>
+      <Event>Processed through USPS Sort Facility</Event>
+      <EventCity>CHARLESTON</EventCity>
+      <EventState>WV</EventState>
+      <EventZIPCode>25350</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>10</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime/>
+      <EventDate>May 13, 2014</EventDate>
+      <Event>Electronic Shipping Info Received</Event>
+      <EventCity/>
+      <EventState/>
+      <EventZIPCode/>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>MA</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>10:39 pm</EventTime>
+      <EventDate>May 12, 2014</EventDate>
+      <Event>Processed at USPS Origin Sort Facility</Event>
+      <EventCity>INDIANAPOLIS</EventCity>
+      <EventState>IN</EventState>
+      <EventZIPCode>46241</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>10</EventCode>
+    </TrackDetail>
+    <TrackDetail>
+      <EventTime>9:24 pm</EventTime>
+      <EventDate>May 12, 2014</EventDate>
+      <Event>Accepted at USPS Origin Sort Facility</Event>
+      <EventCity>INDIANAPOLIS</EventCity>
+      <EventState>IN</EventState>
+      <EventZIPCode>46222</EventZIPCode>
+      <EventCountry/>
+      <FirmName/>
+      <Name/>
+      <AuthorizedAgent>false</AuthorizedAgent>
+      <EventCode>OA</EventCode>
+    </TrackDetail>
+  </TrackInfo>
+</TrackResponse>

@@ -140,7 +140,8 @@ module ActiveMerchant
       RESPONSE_ERROR_MESSAGES = [
         /There is no record of that mail item/,
         /This Information has not been included in this Test Server\./,
-        /Delivery status information is not available/
+        /Delivery status information is not available/,
+        /That's not a valid number\./
       ]
 
       def find_tracking_info(tracking_number, options={})
@@ -559,6 +560,13 @@ module ActiveMerchant
       
       def parse_tracking_with_fields_response(response)
         xml = REXML::Document.new(response)
+        
+        # We have a document level error
+        if !!xml.elements['Error']
+          description = xml.elements['Error/Description'].get_text.to_s
+          raise ResponseError.new(description)
+        end
+
         tracking_responses = []
         tracking_nodes = xml.elements.collect('TrackResponse/TrackInfo') { |e| e }
 
@@ -568,7 +576,7 @@ module ActiveMerchant
           tracking_summary = tracking_info.elements['TrackSummary']
 
           success = !(tracking_info.elements['Error'] || summary_no_record?(tracking_summary))
-          message = "" #response_message(tracking_info)
+          message = response_message(tracking_info)
           shipment_events = []
           status, expected_delivery_date, actual_delivery_date = nil
 
@@ -585,10 +593,11 @@ module ActiveMerchant
             status = status.downcase.gsub("\s", "_").to_sym
             
             if tracking_info.elements['ExpectedDeliveryDate']
-              puts "#{tracking_info.elements['ExpectedDeliveryDate'].to_s} #{tracking_info.elements['ExpectedDeliveryTime'].to_s}"
-
-              time = Time.parse("#{tracking_info.elements['ExpectedDeliveryDate'].to_s} #{tracking_info.elements['ExpectedDeliveryTime'].to_s}")
-
+              if tracking_info.elements['ExpectedDeliveryTime']
+                time = Time.parse("#{tracking_info.elements['ExpectedDeliveryDate'].get_text.to_s} #{tracking_info.elements['ExpectedDeliveryTime'].get_text.to_s}")
+              else
+                time = Time.parse("#{tracking_info.elements['ExpectedDeliveryDate'].get_text.to_s}")
+              end
               expected_delivery_date = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
             end
           end
@@ -621,7 +630,7 @@ module ActiveMerchant
       end
 
       def track_summary_node(document)
-        document.elements['*/*/TrackSummary']
+        document.elements['*/*/TrackSummary'] || document.elements['TrackSummary']
       end
 
       def error_description_node(document)

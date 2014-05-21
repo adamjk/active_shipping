@@ -8,6 +8,7 @@ class USPSTest < Test::Unit::TestCase
     @locations = TestFixtures.locations
     @carrier   = USPS.new(:login => 'login')
     @tracking_response = xml_fixture('usps/tracking_response')
+    @tracking_w_fields_response = xml_fixture('usps/tracking_w_fields_response')
     @tracking_response_failure = xml_fixture('usps/tracking_response_failure')
   end
 
@@ -18,10 +19,24 @@ class USPSTest < Test::Unit::TestCase
     end
   end
 
+  def test_tracking_w_fields_failure_should_raise_exception
+    @carrier.expects(:commit).returns(@tracking_response_failure)
+    assert_raises(ResponseError, "There is no record of that mail item.") do
+      @carrier.find_tracking_info_with_fields(['abc123xyz'], :test => true)
+    end
+  end
+
   def test_find_tracking_info_should_handle_not_found_error
     @carrier.expects(:commit).returns(xml_fixture('usps/tracking_response_test_error'))
     assert_raises ResponseError do
       @carrier.find_tracking_info('9102901000462189604217', :test => true)
+    end
+  end
+  
+  def test_find_tracking_info_w_fields_should_handle_not_found_error
+    @carrier.expects(:commit).returns(xml_fixture('usps/tracking_response_test_error'))
+    assert_raises(ResponseError, "This Information has not been included in this Test Server.") do
+      @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true)
     end
   end
 
@@ -32,10 +47,24 @@ class USPSTest < Test::Unit::TestCase
     end
   end
 
+  def test_find_tracking_info_should_handle_invalid_xml_error
+    @carrier.expects(:commit).returns(xml_fixture('usps/invalid_xml_tracking_response_error'))
+    assert_raises(ResponseError, "Invalid XML A name contained an invalid character.") do
+      @carrier.find_tracking_info_with_fields(['9102901000462189604217','9102901000462189604214'], :test => true)
+    end
+  end
+  
   def test_find_tracking_info_should_handle_not_available_error
     @carrier.expects(:commit).returns(xml_fixture('usps/tracking_response_not_available'))
     assert_raises ResponseError do
       @carrier.find_tracking_info('9574211957289221353248', :test => true)
+    end
+  end
+
+  def test_find_tracking_info_w_fields_should_handle_not_available_error
+    @carrier.expects(:commit).returns(xml_fixture('usps/tracking_response_not_available'))
+    assert_raises( ResponseError, "Delivery status information is not available for your item via this web site.") do
+      @carrier.find_tracking_info(['9574211957289221353248'], :test => true)
     end
   end
 
@@ -46,15 +75,34 @@ class USPSTest < Test::Unit::TestCase
     assert_equal 'ActiveMerchant::Shipping::TrackingResponse', @carrier.find_tracking_info('EJ958083578US').class.name
   end
 
+  def test_find_tracking_info_w_fields_should_return_a_tracking_response
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    assert_instance_of ActiveMerchant::Shipping::TrackingResponse, @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    assert_equal 'ActiveMerchant::Shipping::TrackingResponse', @carrier.find_tracking_info_with_fields(['EJ958083578US']).first.class.name
+  end
+
   def test_find_tracking_info_should_parse_response_into_correct_number_of_shipment_events
     @carrier.expects(:commit).returns(@tracking_response)
     response = @carrier.find_tracking_info('9102901000462189604217', :test => true)
     assert_equal 7, response.shipment_events.size
   end
 
+  def test_find_tracking_info_w_fields_should_parse_response_into_correct_number_of_shipment_events
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
+    assert_equal 9, response.shipment_events.size
+  end
+
   def test_find_tracking_info_should_return_shipment_events_in_ascending_chronological_order
     @carrier.expects(:commit).returns(@tracking_response)
     response = @carrier.find_tracking_info('9102901000462189604217', :test => true)
+    assert_equal response.shipment_events.map(&:time).sort, response.shipment_events.map(&:time)
+  end
+  
+  def test_find_tracking_info_w_fields_should_return_shipment_events_in_ascending_chronological_order
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
     assert_equal response.shipment_events.map(&:time).sort, response.shipment_events.map(&:time)
   end
 
@@ -69,6 +117,20 @@ class USPSTest < Test::Unit::TestCase
                  '2012-01-27 08:03:00 UTC',
                  '2012-01-27 08:13:00 UTC'], response.shipment_events.map{ |e| e.time.strftime('%Y-%m-%d %H:%M:00 %Z') }
   end
+  
+  def test_find_tracking_info_w_fields_should_have_correct_timestamps_for_shipment_events
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
+    assert_equal ['2014-05-12 21:24:00 UTC',
+                 '2014-05-12 22:39:00 UTC',
+                 '2014-05-13 00:00:00 UTC',
+                 '2014-05-13 17:38:00 UTC',
+                 '2014-05-13 19:59:00 UTC',
+                 '2014-05-14 05:33:00 UTC',
+                 '2014-05-14 07:27:00 UTC',
+                 '2014-05-14 07:37:00 UTC',
+                 '2014-05-14 16:42:00 UTC'], response.shipment_events.map{ |e| e.time.strftime('%Y-%m-%d %H:%M:00 %Z') }
+  end
 
   def test_find_tracking_info_should_have_correct_names_for_shipment_events
     @carrier.expects(:commit).returns(@tracking_response)
@@ -80,6 +142,20 @@ class USPSTest < Test::Unit::TestCase
                  "ARRIVAL AT POST OFFICE",
                  "SORTING COMPLETE",
                  "OUT FOR DELIVERY"], response.shipment_events.map(&:name)
+  end
+  
+  def test_find_tracking_info_should_have_correct_names_for_shipment_events
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217']).first
+    assert_equal ["Accepted at USPS Origin Sort Facility",
+                 "Processed at USPS Origin Sort Facility",
+                 "Electronic Shipping Info Received",
+                 "Processed through USPS Sort Facility",
+                 "Depart USPS Sort Facility",
+                 "Arrival at Post Office",
+                 "Sorting Complete",
+                 "Out for Delivery",
+                 "Delivered"], response.shipment_events.map(&:name)
   end
 
   def test_find_tracking_info_should_have_correct_locations_for_shipment_events
@@ -94,10 +170,31 @@ class USPSTest < Test::Unit::TestCase
                  "DES MOINES, IA, 50311"], response.shipment_events.map{|e| e.location}.map{|l| "#{l.city}, #{l.state}, #{l.postal_code}"}
   end
 
+  def test_find_tracking_info_w_fields_should_have_correct_locations_for_shipment_events
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
+    assert_equal ["INDIANAPOLIS, IN, 46222",
+                 "INDIANAPOLIS, IN, 46241",
+                 ", , ",
+                 "CHARLESTON, WV, 25350",
+                 "CHARLESTON, WV, 25350",
+                 "SAINT ALBANS, WV, 25177",
+                 "SAINT ALBANS, WV, 25177",
+                 "SAINT ALBANS, WV, 25177",
+                 "SAINT ALBANS, WV, 25177"], response.shipment_events.map{|e| e.location}.map{|l| "#{l.city}, #{l.state}, #{l.postal_code}"}
+  end
+
   def test_find_tracking_info_destination
     # USPS API doesn't tell where it's going
     @carrier.expects(:commit).returns(@tracking_response)
     response = @carrier.find_tracking_info('9102901000462189604217', :test => true)
+    assert_equal response.destination, nil
+  end
+
+  def test_find_tracking_info_w_fields_destination
+    # USPS API doesn't tell where it's going
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217'], :test => true).first
     assert_equal response.destination, nil
   end
 
@@ -106,11 +203,23 @@ class USPSTest < Test::Unit::TestCase
     response = @carrier.find_tracking_info('9102901000462189604217', :test => true)
     assert_equal response.tracking_number, '9102901000462189604217'
   end
+  
+  def test_find_tracking_info_w_fields_tracking_number
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9400110200882182234434'], :test => true).first
+    assert_equal response.tracking_number, '9400110200882182234434'
+  end
 
   def test_find_tracking_info_should_have_correct_status
     @carrier.expects(:commit).returns(@tracking_response)
     response = @carrier.find_tracking_info('9102901000462189604217')
     assert_equal :out_for_delivery, response.status
+  end
+  
+  def test_find_tracking_info_w_fields_should_have_correct_status
+    @carrier.expects(:commit).returns(@tracking_w_fields_response)
+    response = @carrier.find_tracking_info_with_fields(['9102901000462189604217']).first
+    assert_equal :delivered, response.status
   end
 
   def test_find_tracking_info_should_have_correct_delivered
