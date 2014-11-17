@@ -582,10 +582,11 @@ module ActiveMerchant
 
           if success 
             tracking_details.each do |event|
-              shipment_events << extract_track_with_fields_event(event)
+              ship_event = extract_track_with_fields_event(event)
+              shipment_events << ship_event if !ship_event.nil?
             end
             summary_ship_event = extract_track_with_fields_event(tracking_summary)
-            shipment_events << summary_ship_event
+            shipment_events << summary_ship_event if !summary_ship_event.nil?
             shipment_events = shipment_events.sort_by(&:time)
 
             actual_delivery_date = summary_ship_event.time if summary_ship_event.delivered?
@@ -618,15 +619,19 @@ module ActiveMerchant
       end
 
       def extract_track_with_fields_event(track_event_node)
+        event = nil
         status_name = track_event_node.elements['Event'].get_text.to_s
-        time = Time.parse("#{track_event_node.elements['EventDate'].get_text.to_s} #{track_event_node.elements['EventTime'].get_text.to_s}")
-        zoneless_datetime = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
-        country = !!track_event_node.elements['EventCountry'] || track_event_node.elements['EventCountry'].blank? ? 'USA' : track_event_node.elements['EventCountry'].get_text.to_s
-        location = Location.new(city: track_event_node.elements['EventCity'].get_text.to_s,
-                                state: track_event_node.elements['EventState'].get_text.to_s,
-                                postal_code: track_event_node.elements['EventZIPCode'].get_text.to_s,
-                                country: country)
-        ShipmentEvent.new(status_name, zoneless_datetime, location)
+        if !status_name.nil? && !status_name.empty?
+          time = Time.parse("#{track_event_node.elements['EventDate'].get_text.to_s} #{track_event_node.elements['EventTime'].get_text.to_s}")
+          zoneless_datetime = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
+          country = !!track_event_node.elements['EventCountry'] || track_event_node.elements['EventCountry'].blank? ? 'USA' : track_event_node.elements['EventCountry'].get_text.to_s
+          location = Location.new(city: track_event_node.elements['EventCity'].get_text.to_s,
+                                  state: track_event_node.elements['EventState'].get_text.to_s,
+                                  postal_code: track_event_node.elements['EventZIPCode'].get_text.to_s,
+                                  country: country)
+          event = ShipmentEvent.new(status_name, zoneless_datetime, location)
+        end
+        event
       end
 
       def track_summary_node(document)
