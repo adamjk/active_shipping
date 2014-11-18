@@ -586,10 +586,12 @@ module ActiveMerchant
               shipment_events << ship_event if !ship_event.nil?
             end
             summary_ship_event = extract_track_with_fields_event(tracking_summary)
-            shipment_events << summary_ship_event if !summary_ship_event.nil?
-            shipment_events = shipment_events.sort_by(&:time)
+            if !summary_ship_event.nil?
+              shipment_events << summary_ship_event
+              actual_delivery_date = summary_ship_event.time if summary_ship_event.delivered?
+            end
 
-            actual_delivery_date = summary_ship_event.time if summary_ship_event.delivered?
+            shipment_events = shipment_events.sort_by(&:time)
             status = tracking_info.elements['StatusCategory'].get_text.to_s
             status = status.downcase.gsub("\s", "_").to_sym
             
