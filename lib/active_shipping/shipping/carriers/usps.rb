@@ -23,7 +23,6 @@ module ActiveMerchant
 
       cattr_reader :name
       @@name = "USPS"
-      @@ip_addr = IPSocket.getaddress(Socket.gethostname)
 
       LIVE_DOMAIN = 'production.shippingapis.com'
       LIVE_RESOURCE = 'ShippingAPI.dll'
@@ -144,6 +143,11 @@ module ActiveMerchant
         /That's not a valid number\./
       ]
 
+      def initialize(options = {})
+        super
+        @ip_addr = @options[:ip_address] || IPSocket.getaddress(Socket.gethostname)
+      end
+
       def find_tracking_info(tracking_number, options={})
         options = @options.update(options)
         tracking_request = build_tracking_request(tracking_number, options)
@@ -242,7 +246,7 @@ module ActiveMerchant
         xml_request = XmlNode.new('TrackFieldRequest', 'USERID' => @options[:login]) do |root_node|
           root_node << XmlNode.new('Revision', 1)
           # NOTE not sure of purpose and use of the client ip address
-          root_node << XmlNode.new('ClientIp', @@ip_addr)
+          root_node << XmlNode.new('ClientIp', @ip_addr)
           root_node << XmlNode.new('SourceId', @options[:login]) # usps login as internal user
           tracking_numbers.each { |track_num| root_node << XmlNode.new('TrackID', :ID => track_num) }
         end
@@ -578,22 +582,25 @@ module ActiveMerchant
           success = !(tracking_info.elements['Error'] || summary_no_record?(tracking_summary))
           message = response_message(tracking_info)
           shipment_events = []
-          status, expected_delivery_date, actual_delivery_date = nil
+          status, status_category, expected_delivery_date, actual_delivery_date = nil, nil, nil, nil
 
           if success 
+            previous_event_time = Time.now
             tracking_details.each do |event|
-              ship_event = extract_track_with_fields_event(event)
-              shipment_events << ship_event if !ship_event.nil?
+              ship_event = extract_track_with_fields_event(event, previous_event_time)
+              previous_event_time = ship_event.time
+              shipment_events << ship_event
             end
-            summary_ship_event = extract_track_with_fields_event(tracking_summary)
+            summary_ship_event = extract_track_with_fields_event(tracking_summary, previous_event_time)
             if !summary_ship_event.nil?
               shipment_events << summary_ship_event
+              status = summary_ship_event.status
               actual_delivery_date = summary_ship_event.time if summary_ship_event.delivered?
             end
 
             shipment_events = shipment_events.sort_by(&:time)
-            status = tracking_info.elements['StatusCategory'].get_text.to_s
-            status = status.downcase.gsub("\s", "_").to_sym
+            status_category = tracking_info.elements['StatusCategory'].get_text.to_s
+            status_category = status_category.downcase.gsub("\s", "_").to_sym
             
             if tracking_info.elements['ExpectedDeliveryDate']
               if tracking_info.elements['ExpectedDeliveryTime']
@@ -612,6 +619,7 @@ module ActiveMerchant
                                :shipment_events => shipment_events,
                                :tracking_number => tracking_number,
                                :status => status,
+                               :status_category => status_category,
                                :actual_delivery_date => actual_delivery_date,
                                :scheduled_delivery_date => expected_delivery_date
                               )
@@ -620,19 +628,27 @@ module ActiveMerchant
         tracking_responses
       end
 
-      def extract_track_with_fields_event(track_event_node)
+      # pass default event_time to fill if none available in event in order to maintain sort order
+      def extract_track_with_fields_event(track_event_node, default_event_time)
         event = nil
         status_name = track_event_node.elements['Event'].get_text.to_s
-        if !status_name.nil? && !status_name.empty?
-          time = Time.parse("#{track_event_node.elements['EventDate'].get_text.to_s} #{track_event_node.elements['EventTime'].get_text.to_s}")
+        datetime_str = "#{track_event_node.elements['EventDate'].get_text.to_s} #{track_event_node.elements['EventTime'].get_text.to_s}"
+       
+        if !datetime_str.nil? && datetime_str.length > 1
+          time = Time.parse(datetime_str)
           zoneless_datetime = Time.utc(time.year, time.month, time.mday, time.hour, time.min, time.sec)
-          country = !!track_event_node.elements['EventCountry'] || track_event_node.elements['EventCountry'].blank? ? 'USA' : track_event_node.elements['EventCountry'].get_text.to_s
-          location = Location.new(city: track_event_node.elements['EventCity'].get_text.to_s,
-                                  state: track_event_node.elements['EventState'].get_text.to_s,
-                                  postal_code: track_event_node.elements['EventZIPCode'].get_text.to_s,
-                                  country: country)
-          event = ShipmentEvent.new(status_name, zoneless_datetime, location)
+        else
+          zoneless_datetime = default_event_time
         end
+
+        country = !!track_event_node.elements['EventCountry'] || track_event_node.elements['EventCountry'].blank? ? 'USA' : track_event_node.elements['EventCountry'].get_text.to_s
+
+        location = Location.new(city: track_event_node.elements['EventCity'].get_text.to_s,
+                                state: track_event_node.elements['EventState'].get_text.to_s,
+                                postal_code: track_event_node.elements['EventZIPCode'].get_text.to_s,
+                                country: country)
+        event = ShipmentEvent.new(status_name, zoneless_datetime, location)
+
         event
       end
 

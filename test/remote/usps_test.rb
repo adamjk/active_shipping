@@ -10,14 +10,13 @@ class USPSTest < Test::Unit::TestCase
 
   def test_tracking
     assert_nothing_raised do
-      @carrier.find_tracking_info('9400110200882182234434', :test => true)
+      response = @carrier.find_tracking_info('9400110200881506616178', :test => true)
     end
   end
 
   def test_tracking_w_fields
     assert_nothing_raised do
-      response = @carrier.find_tracking_info_with_fields(['9400110200882182234434'], :test => true).first
-      puts response.xml
+      response = @carrier.find_tracking_info_with_fields(['9400110200881506616178'], :test => true).first
     end
   end
 
@@ -30,6 +29,12 @@ class USPSTest < Test::Unit::TestCase
   def test_tracking_w_field_with_bad_number
     assert_raises ActiveMerchant::Shipping::ResponseError do
       response = @carrier.find_tracking_info_with_fields(['abc123xyz'])
+    end
+  end
+
+  def test_tracking_for_no_status_time
+    assert_nothing_raised do
+      response = @carrier.find_tracking_info_with_fields(['9400110200882472687667'])
     end
   end
 

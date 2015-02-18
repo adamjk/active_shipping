@@ -7,6 +7,7 @@ module ActiveMerchant #:nodoc:
       attr_reader :status # symbol
       attr_reader :status_code # string
       attr_reader :status_description #string
+      attr_reader :status_category #symbol
       attr_reader :ship_time # time
       attr_reader :scheduled_delivery_date # time
       attr_reader :actual_delivery_date # time
@@ -21,6 +22,7 @@ module ActiveMerchant #:nodoc:
         @status = options[:status]
         @status_code = options[:status_code]
         @status_description = options[:status_description]
+        @status_category = options[:status_category]
         @ship_time = options[:ship_time]
         @scheduled_delivery_date = options[:scheduled_delivery_date]
         @actual_delivery_date = options[:actual_delivery_date]

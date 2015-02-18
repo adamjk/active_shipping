@@ -1,5 +1,6 @@
 usps:
-  login: APIKey
+  login: ApiKey
+  ip_address: 141.214.14.1
 ups:
   key: XmlAccessKey
   login: UPSDotComLogin
