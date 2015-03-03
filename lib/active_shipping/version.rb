@@ -1,3 +1,3 @@
 module ActiveShipping
-  VERSION = "0.16.0goodmouth"
+  VERSION = "0.17.0goodmouth"
 end
